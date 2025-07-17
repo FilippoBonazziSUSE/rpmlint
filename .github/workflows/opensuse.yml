@@ -3,8 +3,8 @@ name: openSUSE
 on:
   pull_request:
     branches: [opensuse, 'opensuse-slfo-*']
-    paths:
-      - configs/openSUSE/**
+    #paths:
+    #  - configs/openSUSE/**
 
 jobs:
   bugs:
