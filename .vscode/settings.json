@@ -4,4 +4,5 @@
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
+    "black-formatter.args": ["-S", "--line-length", "120"],
 }
