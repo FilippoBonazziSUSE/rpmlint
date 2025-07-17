@@ -131,7 +131,7 @@ def main():
     if not bug_tags:
         print(f'No valid bug tags found (specified {args.bug_tag})', file=sys.stderr)
         return 1
-    bug_regex = re.compile(f'(?:{'|'.join(bug_tags)})#\\d+')
+    bug_regex = re.compile(f'(?:{"|".join(bug_tags)})#\\d+')
 
     # Get list of commits
     try:
