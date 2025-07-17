@@ -3,6 +3,7 @@
 import argparse
 import dataclasses
 import difflib
+import os
 import re
 import subprocess
 import sys
@@ -143,6 +144,8 @@ def main():
             print('\n'.join(range_revs))
     except subprocess.CalledProcessError as e:
         print(e, file=sys.stderr)
+        print(e.stderr, file=sys.stderr)
+        print(os.getcwd())
         return e.returncode
 
     # Extract data from commits
