@@ -31,7 +31,7 @@ SIMILARITY_THRESHOLD = 0.8
 
 @dataclasses.dataclass
 class Commit:
-    '''A class to hold some fields of a git commit'''
+    """A class to hold some fields of a git commit"""
 
     commit_id: str
     message: str
@@ -50,7 +50,7 @@ def validate_url(s: str) -> str:
 
 
 def bugnum(bugid: str) -> str:
-    '''Convert a bug ID (bsc#123456) to a bug number (123456).'''
+    """Convert a bug ID (bsc#123456) to a bug number (123456)."""
     if '#' in bugid:
         return bugid.split(sep='#', maxsplit=1)[1]
     if bugid.isdigit():
@@ -59,7 +59,7 @@ def bugnum(bugid: str) -> str:
 
 
 def check_bug_status(bugid: str, bugzilla: str) -> (bool, bool):
-    '''Check if a bug exists and is public on BUGZILLA_URL.'''
+    """Check if a bug exists and is public on BUGZILLA_URL."""
     try:
         n = bugnum(bugid)
         r = requests.get(f'{bugzilla}/show_bug.cgi', params={'id': n})
