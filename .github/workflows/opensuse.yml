@@ -16,7 +16,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       #run: pip install requests
-      - run: git fetch --deepen $(git rev-list origin/"$GITHUB_BASE_REF"...origin"$GITHUB_HEAD_REF" | wc -l)
-      - run: git switch "$GITHUB_BASE_REF"
-      - run: git switch "$GITHUB_HEAD_REF"
+      - run: git fetch --deepen=$(git rev-list origin/"$GITHUB_BASE_REF"...origin/"$GITHUB_HEAD_REF" | wc -l)
       - run: python3 tools/check_whitelisting.py --title "$TITLE" --body "$BODY" --strict -- "$GITHUB_BASE_REF...$GITHUB_HEAD_REF"
