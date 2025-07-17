@@ -10,10 +10,10 @@ jobs:
   bugs:
     runs-on: ubuntu-latest
 
+    env:
+        TITLE: ${{ github.event.pull_request.title }}
+        BODY: ${{ github.event.pull_request.body }}
     steps:
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       #run: pip install requests
-      env:
-          TITLE: ${{ github.event.pull_request.title }}
-          BODY: ${{ github.event.pull_request.body }}
-      run: python3 tools/check_whitelisting.py --title "$TITLE" --body "$BODY" --strict -- "$GITHUB_BASE_REF...$GITHUB_HEAD_REF"
+      - run: python3 tools/check_whitelisting.py --title "$TITLE" --body "$BODY" --strict -- "$GITHUB_BASE_REF...$GITHUB_HEAD_REF"
