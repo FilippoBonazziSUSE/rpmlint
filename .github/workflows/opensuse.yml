@@ -1,0 +1,20 @@
+name: openSUSE
+
+on:
+  pull_request:
+    branches: [opensuse, 'opensuse-slfo-*']
+    #paths:
+    #  - configs/openSUSE/**
+
+jobs:
+  bugs:
+    runs-on: ubuntu-latest
+
+    env:
+        TITLE: ${{ github.event.pull_request.title }}
+        BODY: ${{ github.event.pull_request.body }}
+    steps:
+      - uses: actions/checkout@v4
+      #run: pip install requests
+      - run: git fetch --deepen=$(git rev-list "origin/$GITHUB_BASE_REF...HEAD" | wc -l)
+      - run: python3 tools/check_whitelisting.py --title "$TITLE" --body "$BODY" --strict -- "$GITHUB_BASE_REF...HEAD"
