@@ -33,12 +33,12 @@ SIMILARITY_THRESHOLD = 0.8
 class Commit:
     """A class to hold some fields of a git commit"""
 
-    id: str
+    commit_id: str
     message: str
     diff: str
 
     def __str__(self) -> str:
-        return self.id + "\n" + self.message + "\n" + self.diff
+        return self.commit_id + "\n" + self.message + "\n" + self.diff
 
 
 def validate_url(s: str) -> str:
@@ -178,9 +178,9 @@ def main():
 
         # Extract bugs from added lines in the commit diff
         added = "\n".join(
-            l
-            for l in c.diff.splitlines()
-            if (l.startswith("+") and not l.startswith("+++"))
+            ln
+            for ln in c.diff.splitlines()
+            if (ln.startswith("+") and not ln.startswith("+++"))
         )
         for b in set(re.findall(bug_regex, added)):
             if b not in bugs:
@@ -188,7 +188,7 @@ def main():
             bugs[b].append(f"diff:{commit}")
 
     if args.verbose:
-        for id, v in commits.items():
+        for _, v in commits.items():
             print(v)
             print()
 
@@ -229,28 +229,32 @@ def main():
             warnings += 1
 
     # Detect nonexistent or non-public bugs
-    for id, bug in bugs.items():
-        exists, public = check_bug_status(id, args.bugzilla)
+    for bugid, bug in bugs.items():
+        exists, public = check_bug_status(bugid, args.bugzilla)
         if not exists:
             print(
-                f"Error:\t\t{id}\t(found in {bug}) does not exist on {args.bugzilla}!"
+                f"Error:\t\t{bugid}\t(found in {bug}) does not exist on {args.bugzilla}!"
             )
             errors += 1
         if not public:
-            print(f"Warning:\t{id}\t(found in {bug}) is not public on {args.bugzilla}!")
+            print(
+                f"Warning:\t{bugid}\t(found in {bug}) is not public on {args.bugzilla}!"
+            )
             warnings += 1
-    
+
     # Detect possible removal of bug references
     # Extract bugs from removed lines in the commit diff
-    for id, c in commits.items():
+    for commit, c in commits.items():
         removed = "\n".join(
-            l
-            for l in c.diff.splitlines()
-            if (l.startswith("-") and not l.startswith("---"))
+            ln
+            for ln in c.diff.splitlines()
+            if (ln.startswith("-") and not ln.startswith("---"))
         )
         for b in set(re.findall(bug_regex, removed)):
-            if b not in [x for x in bugs if any(s for s in bugs[x] if s.startswith("diff"))]:
-                print(f"Warning:\t{id}\t is being removed in {id}")
+            if b not in [
+                x for x in bugs if any(s for s in bugs[x] if s.startswith("diff"))
+            ]:
+                print(f"Warning:\t{b}\t is being removed in {commit}")
                 warnings += 1
 
     return errors + warnings if args.strict else errors
