@@ -271,7 +271,7 @@ def main():
     commits, bugs = extract_commit_data(range_revs, bug_regex)
 
     if args.verbose > 1:
-        print("Commits:")
+        print('Commits:')
         for _, v in commits.items():
             print(v)
             print()
@@ -289,7 +289,7 @@ def main():
             bugs[b].append('PR Body')
 
     if args.verbose:
-        print(f"Bugs ({len(bugs)}):")
+        print(f'Bugs ({len(bugs)}):')
         print(', '.join(bugs))
         print()
 
