@@ -229,9 +229,13 @@ def main():
         if not exists:
             print(f'Error:\t\t{bugid}\t(found in {bug}) does not exist on {args.bugzilla}!')
             errors += 1
+        elif args.verbose:
+            print(f'{bugid}\t(found in {bug}) exists on {args.bugzilla}')
         if not public:
             print(f'Warning:\t{bugid}\t(found in {bug}) is not public on {args.bugzilla}!')
             warnings += 1
+        elif args.verbose:
+                print(f'{bugid}\t(found in {bug}) is public on {args.bugzilla}')
 
     # Detect possible removal of bug references
     # Extract bugs from removed lines in the commit diff
