@@ -129,6 +129,26 @@ def detect_nonexistent_nonpublic_bugs(bugs: dict[str, list], bugzilla: str, verb
     return (errors, warnings)
 
 
+def detect_removed_bug_refs(bugs: dict[str, list], commits: dict[str, list], bug_regex: re.Pattern) -> int:
+    """Detect possible removal of bug references.
+
+    Detect bugs which are mentioned in '-' lines and not in '+' lines of a commit.
+    Since bugs could conceivably be removed for valid reasons, only report warnings.
+
+    Returns the number of printed warnings.
+    """
+    warnings = 0
+    # Extract bugs from '-' lines in the commit diff
+    for commit, c in commits.items():
+        removed = '\n'.join(ln for ln in c.diff.splitlines() if (ln.startswith('-') and not ln.startswith('---')))
+        for b in set(re.findall(bug_regex, removed)):
+            # If the bug is not mentioned in any '+' lines, report it as possibly being removed
+            if b not in [x for x in bugs if any(s for s in bugs[x] if s.startswith('diff'))]:
+                print(f'Warning:\t{b}\t is being removed in {commit}')
+                warnings += 1
+    return warnings
+
+
 def main():
     parser = argparse.ArgumentParser(description='Check git commits for whitelisting consistency')
     parser.add_argument(
@@ -275,13 +295,7 @@ def main():
     warnings += w
 
     # Detect possible removal of bug references
-    # Extract bugs from removed lines in the commit diff
-    for commit, c in commits.items():
-        removed = '\n'.join(ln for ln in c.diff.splitlines() if (ln.startswith('-') and not ln.startswith('---')))
-        for b in set(re.findall(bug_regex, removed)):
-            if b not in [x for x in bugs if any(s for s in bugs[x] if s.startswith('diff'))]:
-                print(f'Warning:\t{b}\t is being removed in {commit}')
-                warnings += 1
+    warnings += detect_removed_bug_refs(bugs, commits, bug_regex)
 
     return errors + warnings if args.strict else errors
 
