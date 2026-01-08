@@ -23,6 +23,7 @@ venv/
 
 # IDEs
 .idea
+.vscode
 
 # Patches and files
 *.orig
