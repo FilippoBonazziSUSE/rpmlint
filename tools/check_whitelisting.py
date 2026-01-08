@@ -60,7 +60,10 @@ def bugnum(bugid: str) -> str:
 
 
 def check_bug_status(bugid: str, bugzilla: str) -> (bool, bool):
-    """Check if a bug exists and is public on BUGZILLA_URL."""
+    """Check if a bug exists and is public on BUGZILLA_URL.
+
+    Returns a tuple (exists, public).
+    """
     try:
         n = bugnum(bugid)
         r = requests.get(f'{bugzilla}/show_bug.cgi', params={'id': n})
