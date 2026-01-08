@@ -225,7 +225,7 @@ def main():
         type=str,
         nargs='*',
         default=DEFAULT_BUG_TAGS,
-        help=f'A custom Bugzilla URL [Default: {DEFAULT_BUG_TAGS}]',
+        help=f'A tag by which to identify bug references (tag#xxx) [Default: {DEFAULT_BUG_TAGS}]',
     )
     parser.add_argument(
         '--strict',
