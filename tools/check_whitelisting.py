@@ -79,6 +79,31 @@ def check_bug_status(bugid: str, bugzilla: str) -> (bool, bool):
         return False, False
 
 
+def detect_similar_bugs(bugs: dict[str, list]) -> int:
+    """Detect similar bugs (typos, off-by-one, ...).
+
+    Since this is not a deterministic check, only report warnings.
+
+    Returns the number of printed warnings.
+    """
+    warnings = 0
+    bugs2 = sorted(bugs.keys(), reverse=True)
+    while len(bugs2) > 1:
+        b = bugs2.pop(0)
+        close_matches = set(difflib.get_close_matches(b, bugs2, cutoff=SIMILARITY_THRESHOLD))
+        # Force detect substring bugs
+        for e in bugs2:
+            if bugnum(b) in e or bugnum(e) in b:
+                close_matches.add(e)
+        if close_matches:
+            print(f'Warning:\t{b}\t(found in {bugs[b]}) closely matches:')
+            for m in close_matches:
+                print(f'\t\t{m}\t(found in {bugs[m]})')
+            print()
+            warnings += 1
+    return warnings
+
+
 def main():
     parser = argparse.ArgumentParser(description='Check git commits for whitelisting consistency')
     parser.add_argument(
@@ -217,19 +242,7 @@ def main():
     warnings = 0
 
     # Detect similar bugs (typos, off-by-one, ...)
-    bugs2 = sorted(bugs.keys(), reverse=True)
-    while len(bugs2) > 1:
-        b = bugs2.pop(0)
-        close_matches = set(difflib.get_close_matches(b, bugs2, cutoff=SIMILARITY_THRESHOLD))
-        # Force detect substring bugs
-        for e in bugs2:
-            if bugnum(b) in e or bugnum(e) in b:
-                close_matches.add(e)
-        if close_matches:
-            print(f'Warning:\t{b}\t(found in {bugs[b]}) closely matches:')
-            for m in close_matches:
-                print(f'\t\t{m}\t(found in {bugs[m]})')
-            warnings += 1
+    warnings += detect_similar_bugs(bugs)
 
     # Detect nonexistent or non-public bugs
     for bugid, bug in bugs.items():
