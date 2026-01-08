@@ -59,6 +59,50 @@ def bugnum(bugid: str) -> str:
     raise ValueError(f'Unknown bug ID: {bugid}')
 
 
+def extract_commit_data(range_revs: list[str], bug_regex: re.Pattern) -> (dict, dict):
+    """Extract data from Git commits passed as a list of ids.
+
+    Return a tuple (commits, bugs) where:
+      - commits is a dict[id, Commit]
+      - bugs is a dict[bugid, list]
+    """
+    commits = {}
+    bugs = {}
+    for commit in range_revs:
+        try:
+            cmd_git_show = ['git', 'show', '-U0', '--format=%B', commit]
+            o = subprocess.run(cmd_git_show, check=True, capture_output=True)
+            sep = 'diff --git'
+            spl = o.stdout.decode('utf-8').strip().split(sep=sep, maxsplit=1)
+            if not spl:
+                print(f'Skipping empty commit {commit}', file=sys.stderr)
+                continue
+            c = Commit(commit, '', '')
+            if len(spl) > 0:
+                c.message = spl[0]
+            if len(spl) > 1:
+                c.diff = sep + spl[1]
+            commits[commit] = c
+
+        except subprocess.CalledProcessError as e:
+            print(e, file=sys.stderr)
+            continue
+
+        # Extract bugs from commit message
+        for b in set(re.findall(bug_regex, c.message)):
+            if b not in bugs:
+                bugs[b] = []
+            bugs[b].append(f'message:{commit}')
+
+        # Extract bugs from '+' lines in the commit diff
+        added = '\n'.join(ln for ln in c.diff.splitlines() if (ln.startswith('+') and not ln.startswith('+++')))
+        for b in set(re.findall(bug_regex, added)):
+            if b not in bugs:
+                bugs[b] = []
+            bugs[b].append(f'diff:{commit}')
+    return (commits, bugs)
+
+
 def check_bug_status(bugid: str, bugzilla: str) -> (bool, bool):
     """Check if a bug exists and is public on BUGZILLA_URL.
 
@@ -224,40 +268,7 @@ def main():
         return e.returncode
 
     # Extract data from commits
-    commits = {}
-    bugs = {}
-    for commit in range_revs:
-        try:
-            cmd_git_show = ['git', 'show', '-U0', '--format=%B', commit]
-            o = subprocess.run(cmd_git_show, check=True, capture_output=True)
-            sep = 'diff --git'
-            spl = o.stdout.decode('utf-8').strip().split(sep=sep, maxsplit=1)
-            if not spl:
-                print(f'Skipping empty commit {commit}', file=sys.stderr)
-                continue
-            c = Commit(commit, '', '')
-            if len(spl) > 0:
-                c.message = spl[0]
-            if len(spl) > 1:
-                c.diff = sep + spl[1]
-            commits[commit] = c
-
-        except subprocess.CalledProcessError as e:
-            print(e, file=sys.stderr)
-            continue
-
-        # Extract bugs from commit message
-        for b in set(re.findall(bug_regex, c.message)):
-            if b not in bugs:
-                bugs[b] = []
-            bugs[b].append(f'message:{commit}')
-
-        # Extract bugs from added lines in the commit diff
-        added = '\n'.join(ln for ln in c.diff.splitlines() if (ln.startswith('+') and not ln.startswith('+++')))
-        for b in set(re.findall(bug_regex, added)):
-            if b not in bugs:
-                bugs[b] = []
-            bugs[b].append(f'diff:{commit}')
+    commits, bugs = extract_commit_data(range_revs, bug_regex)
 
     if args.verbose > 1:
         print("Commits:")
