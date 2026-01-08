@@ -141,8 +141,9 @@ def main():
         o = subprocess.run(cmd_git_rev_list, check=True, capture_output=True)
         range_revs = o.stdout.decode('utf-8').strip().splitlines()
         if args.verbose:
-            print('Commits in range:')
+            print(f'Commits in range ({len(range_revs)}):')
             print('\n'.join(range_revs))
+            print()
     except subprocess.CalledProcessError as e:
         print(e, file=sys.stderr)
         print(e.stderr, file=sys.stderr)
@@ -204,7 +205,9 @@ def main():
             bugs[b].append('PR Body')
 
     if args.verbose:
+        print(f"Bugs ({len(bugs)}):")
         print(', '.join(bugs))
+        print()
 
     #################################################################
     errors = 0
