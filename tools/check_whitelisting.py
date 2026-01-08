@@ -118,8 +118,9 @@ def main():
     parser.add_argument(
         '-v',
         '--verbose',
-        action='store_true',
-        help='Print verbose information [Default: False]',
+        action='count',
+        help='Print increasingly verbose information [Up to 2 times, default: 0]',
+        default=0,
     )
 
     args = parser.parse_args()
@@ -184,7 +185,8 @@ def main():
                 bugs[b] = []
             bugs[b].append(f'diff:{commit}')
 
-    if args.verbose:
+    if args.verbose > 1:
+        print("Commits:")
         for _, v in commits.items():
             print(v)
             print()
