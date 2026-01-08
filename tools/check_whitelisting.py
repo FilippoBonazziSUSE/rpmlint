@@ -104,6 +104,31 @@ def detect_similar_bugs(bugs: dict[str, list]) -> int:
     return warnings
 
 
+def detect_nonexistent_nonpublic_bugs(bugs: dict[str, list], bugzilla: str, verbose: bool | int) -> (int, int):
+    """Detect nonexistent or non-public bugs.
+
+    Nonexistent bugs are reported as errors, while non-public bugs are reported as warnings.
+
+    Returns a tuple (errors, warnings).
+    """
+    errors = 0
+    warnings = 0
+    for bugid, bug in bugs.items():
+        exists, public = check_bug_status(bugid, bugzilla)
+        if not exists:
+            print(f'Error:\t\t{bugid}\t(found in {bug}) does not exist on {bugzilla}!')
+            errors += 1
+        elif verbose:
+            print(f'Debug:\t\t{bugid}\t(found in {bug}) exists on {bugzilla}')
+        if exists:
+            if not public:
+                print(f'Warning:\t{bugid}\t(found in {bug}) is not public on {bugzilla}!')
+                warnings += 1
+            elif verbose:
+                print(f'Debug:\t\t{bugid}\t(found in {bug}) is public on {bugzilla}')
+    return (errors, warnings)
+
+
 def main():
     parser = argparse.ArgumentParser(description='Check git commits for whitelisting consistency')
     parser.add_argument(
@@ -245,19 +270,9 @@ def main():
     warnings += detect_similar_bugs(bugs)
 
     # Detect nonexistent or non-public bugs
-    for bugid, bug in bugs.items():
-        exists, public = check_bug_status(bugid, args.bugzilla)
-        if not exists:
-            print(f'Error:\t\t{bugid}\t(found in {bug}) does not exist on {args.bugzilla}!')
-            errors += 1
-        elif args.verbose:
-            print(f'Debug:\t\t{bugid}\t(found in {bug}) exists on {args.bugzilla}')
-        if exists:
-            if not public:
-                print(f'Warning:\t{bugid}\t(found in {bug}) is not public on {args.bugzilla}!')
-                warnings += 1
-            elif args.verbose:
-                print(f'Debug:\t\t{bugid}\t(found in {bug}) is public on {args.bugzilla}')
+    e, w = detect_nonexistent_nonpublic_bugs(bugs, args.bugzilla, args.verbose)
+    errors += e
+    warnings += w
 
     # Detect possible removal of bug references
     # Extract bugs from removed lines in the commit diff
