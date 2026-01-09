@@ -71,9 +71,9 @@ def extract_commit_data(range_revs: list[str], bug_regex: re.Pattern) -> (dict, 
     for commit in range_revs:
         try:
             cmd_git_show = ['git', 'show', '-U0', '--format=%B', commit]
-            o = subprocess.run(cmd_git_show, check=True, capture_output=True)
+            o = subprocess.run(cmd_git_show, check=True, text=True, capture_output=True)
             sep = 'diff --git'
-            spl = o.stdout.decode('utf-8').strip().split(sep=sep, maxsplit=1)
+            spl = o.stdout.strip().split(sep=sep, maxsplit=1)
             if not spl:
                 print(f'Skipping empty commit {commit}', file=sys.stderr)
                 continue
