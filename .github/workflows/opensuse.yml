@@ -16,6 +16,8 @@ jobs:
         COMMITS: ${{ github.event.pull_request.commits }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: ${{ github.event.pull_request.commits }}
       #run: pip install requests
-      - run: git fetch --deepen="$COMMITS"
       - run: python3 tools/check_whitelisting.py --title "$TITLE" --body "$BODY" --strict --max-count "$COMMITS" -v
