@@ -11,7 +11,7 @@ import urllib
 
 import requests
 
-DEFAULT_RANGE = 'main...HEAD'
+DEFAULT_FROM = 'HEAD'
 DEFAULT_BUGZILLA_URL = 'https://bugzilla.suse.com'
 
 DEFAULT_BUG_TAGS = ['bsc', 'boo']
@@ -196,11 +196,24 @@ def detect_removed_bug_refs(bugs: dict[str, list], commits: dict[str, list], bug
 def main():
     parser = argparse.ArgumentParser(description='Check git commits for whitelisting consistency')
     parser.add_argument(
-        'range',
+        '--from',
         type=str,
-        nargs='?',
-        default=DEFAULT_RANGE,
-        help=f'An optional commit range to inspect [Default: "{DEFAULT_RANGE}"]',
+        dest="git_from",
+        default=DEFAULT_FROM,
+        help=f'The source Git identifier [Default: "{DEFAULT_FROM}"]',
+    )
+    parser.add_argument(
+        '--to',
+        type=str,
+        dest="git_to",
+        default=None,
+        help='The target Git identifier [Default: unset]',
+    )
+    parser.add_argument(
+        '-n',
+        '--max-count',
+        type=int,
+        help='The number of commits to inspect [Default: not limited]',
     )
     parser.add_argument(
         '-t',
@@ -242,6 +255,11 @@ def main():
 
     args = parser.parse_args()
 
+    # At least one of -n or --to must be provided, otherwise this will run on the entire Git history
+    if not (args.max_count or args.git_to):
+        print('Invalid commit range: at least one of --to or -n must be specified', file=sys.stderr)
+        return 1
+
     # Validate Bugzilla URL
     args.bugzilla = validate_url(args.bugzilla)
 
@@ -254,9 +272,25 @@ def main():
 
     # Get list of commits
     try:
-        cmd_git_rev_list = ['git', 'rev-list', args.range]
-        o = subprocess.run(cmd_git_rev_list, check=True, capture_output=True)
-        range_revs = o.stdout.decode('utf-8').strip().splitlines()
+        cmd_git_rev_list = ['git', 'rev-list']
+
+        # Limit commit number if requested
+        if args.max_count:
+            cmd_git_rev_list.append(f'-n{args.max_count}')
+
+        # If a destination ref has been provided, select the commit range between the source ref and the merge-base
+        # between destination and source (the commits in the source "feature" branch)
+        if args.git_to:
+            cmd_git_merge_base = ['git', 'merge-base', args.git_to, args.git_from]
+            o = subprocess.run(cmd_git_merge_base, check=True, text=True, capture_output=True)
+            merge_base = o.stdout.strip()
+            cmd_git_rev_list.append(f'{merge_base}..{args.git_from}')
+        else:
+            cmd_git_rev_list.append(args.git_from)
+
+        # Obtain the selected list of commits
+        o = subprocess.run(cmd_git_rev_list, check=True, text=True, capture_output=True)
+        range_revs = o.stdout.strip().splitlines()
         if args.verbose:
             print(f'Commits in range ({len(range_revs)}):')
             print('\n'.join(range_revs))
