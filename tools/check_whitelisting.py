@@ -198,14 +198,14 @@ def main():
     parser.add_argument(
         '--from',
         type=str,
-        dest="git_from",
+        dest='git_from',
         default=DEFAULT_FROM,
         help=f'The source Git identifier [Default: "{DEFAULT_FROM}"]',
     )
     parser.add_argument(
         '--to',
         type=str,
-        dest="git_to",
+        dest='git_to',
         default=None,
         help='The target Git identifier [Default: unset]',
     )
