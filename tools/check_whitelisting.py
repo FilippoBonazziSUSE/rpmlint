@@ -221,6 +221,31 @@ def detect_removed_bug_refs(bugs: dict[str, list], commits: dict[str, list], bug
     return warnings
 
 
+def detect_bad_hashes(commits: dict[str, list]) -> int:
+    """Detect wrong-length SHA-256 hashes in '+' lines in commits.
+
+    SHA-256 hashes must be 64 hexadecimal characters.
+
+    Returns the number of bad hashes detected.
+    """
+    errors = 0
+
+    for commit, c in commits.items():
+        for ln in c.lines_added():
+            # Strip leading '+' and any whitespace
+            l = ln[1:].strip()
+            if l.startswith('hash ='):
+                # Extract hash value by stripping usual surrounding characters
+                value = l.split(sep='=', maxsplit=1)[1].strip().strip('"\',')
+                if len(value) != 64:
+                    print(f'Error:\t\tInvalid hash length ({len(value)}, expected 64)')
+                    print(f'\t\tin commit {commit}:')
+                    print(ln)
+                    errors += 1
+    if errors:
+        print()
+    return errors
+
 def main():
     parser = argparse.ArgumentParser(description='Check git commits for whitelisting consistency')
     parser.add_argument(
@@ -369,6 +394,9 @@ def main():
 
     # Detect possible removal of bug references
     warnings += detect_removed_bug_refs(bugs, commits, bug_regex)
+
+    # Detect wrong-length SHA-256 hashes
+    errors += detect_bad_hashes(commits)
 
     if args.verbose:
         print(f'\nErrors: {errors}\tWarnings: {warnings}')
