@@ -14,7 +14,7 @@ import requests
 DEFAULT_FROM = 'HEAD'
 DEFAULT_BUGZILLA_URL = 'https://bugzilla.suse.com'
 
-DEFAULT_BUG_TAGS = ['bsc', 'boo']
+DEFAULT_BUG_TAGS = ['bsc', 'boo', 'bnc']
 
 MISSING_BUG_STRINGS = (
     'Missing Bug ID',
