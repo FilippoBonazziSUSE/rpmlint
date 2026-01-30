@@ -20,6 +20,8 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          # Fetch N+1 commits due to the hidden Github PR merge commit
+          # being counted
           fetch-depth: $((COMMITS + 1))
       #run: pip install requests
       - run: python3 tools/check_whitelisting.py --title "$TITLE" --body "$BODY" --strict --max-count "$COMMITS" -v
