@@ -342,6 +342,9 @@ def main():
     # Detect possible removal of bug references
     warnings += detect_removed_bug_refs(bugs, commits, bug_regex)
 
+    if args.verbose:
+        print(f'\nErrors: {errors}\tWarnings: {warnings}')
+
     return errors + warnings if args.strict else errors
 
 
