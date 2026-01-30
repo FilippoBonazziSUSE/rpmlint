@@ -41,6 +41,20 @@ class Commit:
     def __str__(self) -> str:
         return self.commit_id + '\n' + self.message + '\n' + self.diff
 
+    def lines_added(self) -> list[str]:
+        """Return a list of '+' lines in this commit."""
+        if self.diff:
+            return '\n'.join(ln for ln in self.diff.splitlines() if (ln.startswith('+') and not ln.startswith('+++')))
+        else:
+            return []
+
+    def lines_removed(self) -> list[str]:
+        """Return a list of '-' lines in this commit."""
+        if self.diff:
+            return '\n'.join(ln for ln in self.diff.splitlines() if (ln.startswith('-') and not ln.startswith('---')))
+        else:
+            return []
+
 
 def validate_bug_tags(tags: list[str]) -> list[str]:
     """Validate a list of bug tags.
@@ -111,8 +125,7 @@ def extract_commit_data(range_revs: list[str], bug_regex: re.Pattern) -> (dict, 
             bugs[b].append(f'message:{commit}')
 
         # Extract bugs from '+' lines in the commit diff
-        added = '\n'.join(ln for ln in c.diff.splitlines() if (ln.startswith('+') and not ln.startswith('+++')))
-        for b in set(re.findall(bug_regex, added)):
+        for b in set(re.findall(bug_regex, c.lines_added())):
             if b not in bugs:
                 bugs[b] = []
             bugs[b].append(f'diff:{commit}')
@@ -200,8 +213,7 @@ def detect_removed_bug_refs(bugs: dict[str, list], commits: dict[str, list], bug
     warnings = 0
     # Extract bugs from '-' lines in the commit diff
     for commit, c in commits.items():
-        removed = '\n'.join(ln for ln in c.diff.splitlines() if (ln.startswith('-') and not ln.startswith('---')))
-        for b in set(re.findall(bug_regex, removed)):
+        for b in set(re.findall(bug_regex, c.lines_removed())):
             # If the bug is not mentioned in any '+' lines, report it as possibly being removed
             if b not in [x for x in bugs if any(s for s in bugs[x] if s.startswith('diff'))]:
                 print(f'Warning:\t{b}\t is being removed in {commit}')
