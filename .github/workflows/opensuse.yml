@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: ${{ github.event.pull_request.commits }}
       #run: pip install requests
       - run: python3 tools/check_whitelisting.py --title "$TITLE" --body "$BODY" --strict --max-count "$COMMITS" -v
