@@ -84,8 +84,11 @@ def extract_commit_data(range_revs: list[str], bug_regex: re.Pattern) -> (dict, 
     bugs = {}
     for commit in range_revs:
         try:
+            # Show git commit message and diff
             cmd_git_show = ['git', 'show', '-U0', '--format=%B', commit]
             o = subprocess.run(cmd_git_show, check=True, text=True, capture_output=True)
+            # Split commit into message (what comes before 'diff --git ...')
+            # and diff (what comes after, including 'diff --git ...')
             sep = 'diff --git'
             spl = o.stdout.strip().split(sep=sep, maxsplit=1)
             if not spl:
@@ -97,7 +100,6 @@ def extract_commit_data(range_revs: list[str], bug_regex: re.Pattern) -> (dict, 
             if len(spl) > 1:
                 c.diff = sep + spl[1]
             commits[commit] = c
-
         except subprocess.CalledProcessError as e:
             print(e, file=sys.stderr)
             continue
@@ -190,7 +192,7 @@ def detect_nonexistent_nonpublic_bugs(bugs: dict[str, list], bugzilla: str, verb
 def detect_removed_bug_refs(bugs: dict[str, list], commits: dict[str, list], bug_regex: re.Pattern) -> int:
     """Detect possible removal of bug references.
 
-    Detect bugs which are mentioned in '-' lines and not in '+' lines of a commit.
+    Detect bugs which are mentioned in a '-' line and not in any '+' line of any commit.
     Since bugs could conceivably be removed for valid reasons, only report warnings.
 
     Returns the number of printed warnings.
