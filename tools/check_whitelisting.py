@@ -42,6 +42,20 @@ class Commit:
         return self.commit_id + '\n' + self.message + '\n' + self.diff
 
 
+def validate_bug_tags(tags: list[str]) -> list[str]:
+    """Validate a list of bug tags.
+
+    Valid bug tags are short (len < 16) alphanumeric words.
+    """
+    r = []
+    for t in tags:
+        if t.isalnum() and len(t) < 16:
+            r.append(t)
+        else:
+            print(f'Skipping invalid bug tag "{t}"', file=sys.stderr)
+    return r
+
+
 def validate_url(s: str) -> str:
     u = urllib.parse.urlparse(s)
     # Recognize naked URLs as netlocs (e.g. bugzilla.suse.com)
@@ -264,7 +278,7 @@ def main():
     args.bugzilla = validate_url(args.bugzilla)
 
     # Validate bug tags
-    bug_tags = [x for x in args.bug_tag if x.isalnum() and len(x) < 16]
+    bug_tags = validate_bug_tags(args.bug_tag)
     if not bug_tags:
         print(f'No valid bug tags found (specified {args.bug_tag})', file=sys.stderr)
         return 1
