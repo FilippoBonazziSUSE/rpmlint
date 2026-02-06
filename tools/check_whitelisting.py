@@ -365,16 +365,12 @@ def main():
             print()
 
     # Extract data from additional fields
-    if args.title:
-        for b in set(re.findall(bug_regex, args.title)):
-            if b not in bugs:
-                bugs[b] = []
-            bugs[b].append('PR Title')
-    if args.body:
-        for b in set(re.findall(bug_regex, args.body)):
-            if b not in bugs:
-                bugs[b] = []
-            bugs[b].append('PR Body')
+    for text, label in ((args.title, 'PR Title'), (args.body, 'PR Body')):
+        if text:
+            for b in set(re.findall(bug_regex, text)):
+                if b not in bugs:
+                    bugs[b] = []
+                bugs[b].append(label)
 
     if args.verbose:
         print(f'Bugs ({len(bugs)}):')
