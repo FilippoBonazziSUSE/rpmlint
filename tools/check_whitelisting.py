@@ -99,7 +99,8 @@ def extract_commit_data(range_revs: list[str], bug_regex: re.Pattern) -> (dict, 
     for commit in range_revs:
         try:
             # Show git commit message and diff
-            cmd_git_show = ['git', 'show', '-U0', '--format=%B', commit]
+            cmd_git_show = ['git', 'show', '-U0', '--format=%B',
+                            '--no-show-signature', commit]
             o = subprocess.run(cmd_git_show, check=True, text=True, capture_output=True)
             # Split commit into message (what comes before 'diff --git ...')
             # and diff (what comes after, including 'diff --git ...')
