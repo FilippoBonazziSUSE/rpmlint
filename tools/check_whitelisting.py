@@ -287,14 +287,15 @@ def main():
         default=DEFAULT_FROM,
         help=f'The source Git object [Default: "{DEFAULT_FROM}"]',
     )
-    parser.add_argument(
+    limits = parser.add_argument_group('limits', 'Commit range limits (at least one required)')
+    limits.add_argument(
         '--to',
         type=str,
         dest='git_to',
         default=None,
         help='The target Git object [Default: unset]',
     )
-    parser.add_argument(
+    limits.add_argument(
         '-n',
         '--max-count',
         type=int,
