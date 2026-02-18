@@ -1,0 +1,26 @@
+name: openSUSE
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [opensuse, 'opensuse-slfo-*']
+    #paths:
+    #  - configs/openSUSE/**
+
+jobs:
+  bugs:
+    runs-on: ubuntu-latest
+
+    env:
+        TITLE: ${{ github.event.pull_request.title }}
+        BODY: ${{ github.event.pull_request.body }}
+        COMMITS: ${{ github.event.pull_request.commits }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          # Fetch N+1 commits due to the hidden Github PR merge commit
+          # being counted
+          fetch-depth: $((COMMITS + 1))
+      - run: python3 tools/check_whitelisting.py --title "$TITLE" --body "$BODY" --strict --max-count "$COMMITS" -v
