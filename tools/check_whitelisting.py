@@ -285,14 +285,14 @@ def main():
         type=str,
         dest='git_from',
         default=DEFAULT_FROM,
-        help=f'The source Git identifier [Default: "{DEFAULT_FROM}"]',
+        help=f'The source Git object [Default: "{DEFAULT_FROM}"]',
     )
     parser.add_argument(
         '--to',
         type=str,
         dest='git_to',
         default=None,
-        help='The target Git identifier [Default: unset]',
+        help='The target Git object [Default: unset]',
     )
     parser.add_argument(
         '-n',
