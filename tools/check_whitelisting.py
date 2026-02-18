@@ -317,7 +317,7 @@ def main():
         '--bugzilla',
         type=str,
         default=Bug.DEFAULT_BUGZILLA_URL,
-        help=f'A custom Bugzilla URL [Default: {Bug.DEFAULT_BUGZILLA_URL}]',
+        help=f'A custom Bugzilla URL [Default: "{Bug.DEFAULT_BUGZILLA_URL}"]',
     )
     parser.add_argument(
         '--bug-tag',
