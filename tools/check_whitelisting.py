@@ -264,10 +264,10 @@ def detect_bad_hashes(commits: dict[str, Commit]) -> int:
     for commit, c in commits.items():
         for ln in c.lines_added():
             # Strip leading '+' and any whitespace
-            l = ln[1:].strip()
-            if l.startswith('hash ='):
+            stripped_ln = ln[1:].strip()
+            if stripped_ln.startswith('hash ='):
                 # Extract hash value by stripping usual surrounding characters
-                value = l.split(sep='=', maxsplit=1)[1].strip().strip('"\',')
+                value = stripped_ln.split(sep='=', maxsplit=1)[1].strip().strip('"\',')
                 if len(value) != 64:
                     print(f'Error:\t\tInvalid hash length ({len(value)}, expected 64)')
                     print(f'\t\tin commit {commit}:')
