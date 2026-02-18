@@ -12,22 +12,97 @@ import urllib
 import requests
 
 DEFAULT_FROM = 'HEAD'
-DEFAULT_BUGZILLA_URL = 'https://bugzilla.suse.com'
-
-DEFAULT_BUG_TAGS = ['bsc', 'boo', 'bnc']
-
-MISSING_BUG_STRINGS = (
-    'Missing Bug ID',
-    'You must enter a valid bug number!',
-)
-PRIVATE_BUG_STRINGS = (
-    'Bug Access Denied',
-    'You are not authorized to access bug',
-    'To see this bug, you must first',
-)
 
 # Similarity threshold for bug IDs
 SIMILARITY_THRESHOLD = 0.8
+
+
+class Bug:
+    """A class to describe a bug mentioned in a set of commits/a PR."""
+
+    _id: str
+    _mentions: list[str]
+    _bugzilla: str
+
+    DEFAULT_BUGZILLA_URL = 'https://bugzilla.suse.com'
+    MAX_TAG_LENGTH = 16
+    DEFAULT_TAGS = ['bsc', 'boo', 'bnc']
+    MISSING_BUG_STRINGS = (
+        'Missing Bug ID',
+        'You must enter a valid bug number!',
+    )
+    PRIVATE_BUG_STRINGS = (
+        'Bug Access Denied',
+        'You are not authorized to access bug',
+        'To see this bug, you must first',
+    )
+
+    @classmethod
+    def validate_tags(cls, tags: list[str]) -> list[str]:
+        """Validate a list of bug tags.
+
+        Valid bug tags are short alphanumeric words (e.g. 'bsc')
+        """
+        r = []
+        for t in tags:
+            if t.isalnum() and len(t) < cls.MAX_TAG_LENGTH:
+                r.append(t)
+            else:
+                print(f'Skipping invalid bug tag "{t}"', file=sys.stderr)
+        return r
+
+    @staticmethod
+    def id_to_num(bugid: str) -> str:
+        """Convert a bug ID (bsc#123456) to a bug number (123456)."""
+        if '#' in bugid:
+            return bugid.split(sep='#', maxsplit=1)[1]
+        if bugid.isdigit():
+            return bugid
+        raise ValueError(f'Unknown bug ID: {bugid}')
+
+    def __init__(self, bugid, mentions=None, bugzilla=None):
+        self._id = bugid
+        self._num = self.id_to_num(bugid)
+        self._mentions = mentions or []
+        self._bugzilla = bugzilla or self.DEFAULT_BUGZILLA_URL
+
+    @property
+    def bugid(self) -> str:
+        return self._id
+
+    @property
+    def mentions(self) -> str:
+        return self._mentions
+
+    @property
+    def bugzilla(self) -> str:
+        return self._bugzilla
+
+    @property
+    def num(self) -> str:
+        return self._num
+
+    def add_mention(self, mention: str) -> None:
+        self._mentions.append(mention)
+
+    def check_status(self, bugzilla=None) -> (bool, bool):
+        """Check if a bug exists and is public on the Bugzilla instance
+        associated with the bug.
+
+        Returns a tuple (exists, public).
+        """
+        try:
+            r = requests.get(f'{bugzilla or self.bugzilla}/show_bug.cgi', params={'id': self.num})
+            return (
+                not all(s in r.text for s in self.MISSING_BUG_STRINGS),
+                not all(s in r.text for s in self.PRIVATE_BUG_STRINGS),
+            )
+        except requests.exceptions.RequestException as e:
+            print(e, file=sys.stderr)
+            return False, False
+        except ValueError as e:
+            print(e, file=sys.stderr)
+            return False, False
 
 
 @dataclasses.dataclass
@@ -56,20 +131,6 @@ class Commit:
             return []
 
 
-def validate_bug_tags(tags: list[str]) -> list[str]:
-    """Validate a list of bug tags.
-
-    Valid bug tags are short (len < 16) alphanumeric words.
-    """
-    r = []
-    for t in tags:
-        if t.isalnum() and len(t) < 16:
-            r.append(t)
-        else:
-            print(f'Skipping invalid bug tag "{t}"', file=sys.stderr)
-    return r
-
-
 def validate_url(s: str) -> str:
     u = urllib.parse.urlparse(s)
     # Recognize naked URLs as netlocs (e.g. bugzilla.suse.com)
@@ -78,21 +139,12 @@ def validate_url(s: str) -> str:
     return u._replace(path='', params='', query='', fragment='').geturl()
 
 
-def bugnum(bugid: str) -> str:
-    """Convert a bug ID (bsc#123456) to a bug number (123456)."""
-    if '#' in bugid:
-        return bugid.split(sep='#', maxsplit=1)[1]
-    if bugid.isdigit():
-        return bugid
-    raise ValueError(f'Unknown bug ID: {bugid}')
-
-
-def extract_commit_data(range_revs: list[str], bug_regex: re.Pattern) -> (dict, dict):
+def extract_commit_data(range_revs: list[str], bug_regex: re.Pattern) -> (dict[str, Commit], dict[str, Bug]):
     """Extract data from Git commits passed as a list of ids.
 
     Return a tuple (commits, bugs) where:
       - commits is a dict[id, Commit]
-      - bugs is a dict[bugid, list]
+      - bugs is a dict[bugid, Bug]
     """
     commits = {}
     bugs = {}
@@ -121,39 +173,17 @@ def extract_commit_data(range_revs: list[str], bug_regex: re.Pattern) -> (dict, 
 
         # Extract bugs from commit message
         for b in set(re.findall(bug_regex, c.message)):
-            if b not in bugs:
-                bugs[b] = []
-            bugs[b].append(f'message:{commit}')
+            bugs.setdefault(b, Bug(b))
+            bugs[b].add_mention(f'message:{commit}')
 
         # Extract bugs from '+' lines in the commit diff
         for b in set(re.findall(bug_regex, c.lines_added())):
-            if b not in bugs:
-                bugs[b] = []
-            bugs[b].append(f'diff:{commit}')
+            bugs.setdefault(b, Bug(b))
+            bugs[b].add_mention(f'diff:{commit}')
     return (commits, bugs)
 
 
-def check_bug_status(bugid: str, bugzilla: str) -> (bool, bool):
-    """Check if a bug exists and is public on BUGZILLA_URL.
-
-    Returns a tuple (exists, public).
-    """
-    try:
-        n = bugnum(bugid)
-        r = requests.get(f'{bugzilla}/show_bug.cgi', params={'id': n})
-        return (
-            not all(s in r.text for s in MISSING_BUG_STRINGS),
-            not all(s in r.text for s in PRIVATE_BUG_STRINGS),
-        )
-    except requests.exceptions.RequestException as e:
-        print(e, file=sys.stderr)
-        return False, False
-    except ValueError as e:
-        print(e, file=sys.stderr)
-        return False, False
-
-
-def detect_similar_bugs(bugs: dict[str, list]) -> int:
+def detect_similar_bugs(bugs: dict[str, Bug]) -> int:
     """Detect similar bugs (typos, off-by-one, ...).
 
     Since this is not a deterministic check, only report warnings.
@@ -167,18 +197,18 @@ def detect_similar_bugs(bugs: dict[str, list]) -> int:
         close_matches = set(difflib.get_close_matches(b, bugs2, cutoff=SIMILARITY_THRESHOLD))
         # Force detect substring bugs
         for e in bugs2:
-            if bugnum(b) in e or bugnum(e) in b:
+            if Bug.id_to_num(b) in e or Bug.id_to_num(e) in b:
                 close_matches.add(e)
         if close_matches:
-            print(f'Warning:\t{b}\t(found in {bugs[b]}) closely matches:')
+            print(f'Warning:\t{b}\t(found in {bugs[b].mentions}) closely matches:')
             for m in close_matches:
-                print(f'\t\t{m}\t(found in {bugs[m]})')
+                print(f'\t\t{m}\t(found in {bugs[m].mentions})')
             print()
             warnings += 1
     return warnings
 
 
-def detect_nonexistent_nonpublic_bugs(bugs: dict[str, list], bugzilla: str, verbose: bool | int) -> (int, int):
+def detect_nonexistent_nonpublic_bugs(bugs: dict[str, Bug], bugzilla: str, verbose: bool | int) -> (int, int):
     """Detect nonexistent or non-public bugs.
 
     Nonexistent bugs are reported as errors, while non-public bugs are reported as warnings.
@@ -188,22 +218,22 @@ def detect_nonexistent_nonpublic_bugs(bugs: dict[str, list], bugzilla: str, verb
     errors = 0
     warnings = 0
     for bugid, bug in bugs.items():
-        exists, public = check_bug_status(bugid, bugzilla)
+        exists, public = bug.check_status(bugzilla)
         if not exists:
-            print(f'Error:\t\t{bugid}\t(found in {bug}) does not exist on {bugzilla}!')
+            print(f'Error:\t\t{bugid}\t(found in {bug.mentions}) does not exist on {bugzilla}!')
             errors += 1
         elif verbose:
-            print(f'Debug:\t\t{bugid}\t(found in {bug}) exists on {bugzilla}')
+            print(f'Debug:\t\t{bugid}\t(found in {bug.mentions}) exists on {bugzilla}')
         if exists:
             if not public:
-                print(f'Warning:\t{bugid}\t(found in {bug}) is not public on {bugzilla}!')
+                print(f'Warning:\t{bugid}\t(found in {bug.mentions}) is not public on {bugzilla}!')
                 warnings += 1
             elif verbose:
-                print(f'Debug:\t\t{bugid}\t(found in {bug}) is public on {bugzilla}')
+                print(f'Debug:\t\t{bugid}\t(found in {bug.mentions}) is public on {bugzilla}')
     return (errors, warnings)
 
 
-def detect_removed_bug_refs(bugs: dict[str, list], commits: dict[str, list], bug_regex: re.Pattern) -> int:
+def detect_removed_bug_refs(bugs: dict[str, Bug], commits: dict[str, Commit], bug_regex: re.Pattern) -> int:
     """Detect possible removal of bug references.
 
     Detect bugs which are mentioned in a '-' line and not in any '+' line of any commit.
@@ -216,13 +246,13 @@ def detect_removed_bug_refs(bugs: dict[str, list], commits: dict[str, list], bug
     for commit, c in commits.items():
         for b in set(re.findall(bug_regex, c.lines_removed())):
             # If the bug is not mentioned in any '+' lines, report it as possibly being removed
-            if b not in [x for x in bugs if any(s for s in bugs[x] if s.startswith('diff'))]:
+            if b not in [x for x in bugs if any(s for s in bugs[x].mentions if s.startswith('diff'))]:
                 print(f'Warning:\t{b}\t is being removed in {commit}')
                 warnings += 1
     return warnings
 
 
-def detect_bad_hashes(commits: dict[str, list]) -> int:
+def detect_bad_hashes(commits: dict[str, Commit]) -> int:
     """Detect wrong-length SHA-256 hashes in '+' lines in commits.
 
     SHA-256 hashes must be 64 hexadecimal characters.
@@ -246,6 +276,7 @@ def detect_bad_hashes(commits: dict[str, list]) -> int:
     if errors:
         print()
     return errors
+
 
 def main():
     parser = argparse.ArgumentParser(description='Check git commits for whitelisting consistency')
@@ -284,15 +315,15 @@ def main():
     parser.add_argument(
         '--bugzilla',
         type=str,
-        default=DEFAULT_BUGZILLA_URL,
-        help=f'A custom Bugzilla URL [Default: {DEFAULT_BUGZILLA_URL}]',
+        default=Bug.DEFAULT_BUGZILLA_URL,
+        help=f'A custom Bugzilla URL [Default: {Bug.DEFAULT_BUGZILLA_URL}]',
     )
     parser.add_argument(
         '--bug-tag',
         type=str,
         nargs='*',
-        default=DEFAULT_BUG_TAGS,
-        help=f'A tag by which to identify bug references (tag#xxx) [Default: {DEFAULT_BUG_TAGS}]',
+        default=Bug.DEFAULT_TAGS,
+        help=f'A tag by which to identify bug references (tag#xxx) [Default: {Bug.DEFAULT_TAGS}]',
     )
     parser.add_argument(
         '--strict',
@@ -318,7 +349,7 @@ def main():
     args.bugzilla = validate_url(args.bugzilla)
 
     # Validate bug tags
-    bug_tags = validate_bug_tags(args.bug_tag)
+    bug_tags = Bug.validate_tags(args.bug_tag)
     if not bug_tags:
         print(f'No valid bug tags found (specified {args.bug_tag})', file=sys.stderr)
         return 1
@@ -368,9 +399,8 @@ def main():
     for text, label in ((args.title, 'PR Title'), (args.body, 'PR Body')):
         if text:
             for b in set(re.findall(bug_regex, text)):
-                if b not in bugs:
-                    bugs[b] = []
-                bugs[b].append(label)
+                bugs.setdefault(b, Bug(b))
+                bugs[b].add_mention(label)
 
     if args.verbose:
         print(f'Bugs ({len(bugs)}):')
